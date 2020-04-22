@@ -1,0 +1,10 @@
+README.md
+setup.py
+bmp_sensors/BMP180.py
+bmp_sensors/BMP280.py
+bmp_sensors/__init__.py
+bmp_sensors.egg-info/PKG-INFO
+bmp_sensors.egg-info/SOURCES.txt
+bmp_sensors.egg-info/dependency_links.txt
+bmp_sensors.egg-info/requires.txt
+bmp_sensors.egg-info/top_level.txt
