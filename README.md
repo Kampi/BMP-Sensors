@@ -35,7 +35,7 @@ $ python3 -m pip install bmp-sensors
 | **Version** | **Description** |  **Date**  |
 |-------------|-----------------|------------|
 | 1.0         | First release   | 22.04.2020 |
-| 1.1         | Add BME280  |  |
+| 1.1         | Add BME280, optimize code  |  |
 
 ## Maintainer
 

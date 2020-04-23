@@ -30,8 +30,7 @@ if(__name__ == "__main__"):
 	Sensor2 = Sensors.BMP280(1, False)
 	Sensor3 = Sensors.BME280(1, False)
 
-	Sensor2.SetFilter(Sensors.BMP280_Filter.OFF)
-	Sensor2.SetMode(Sensors.BMP280_Mode.FORCED)
+	print("Sensor 2 mode: {}".format(Sensor2.GetMode()))
 	Sensor2.SetFilter(Sensors.BMP280_Filter.OFF)
 
 	while(True):
@@ -40,6 +39,7 @@ if(__name__ == "__main__"):
 		print("Pressure: {} hPa".format(Sensor1.MeasurePressure(Sensors.BMP180_OSS.x1)))
 
 		print("BMP280:")
+		Sensor2.SetMode(Sensors.BMP280_Mode.FORCED)
 		print("Temperature: {} Degree Celsius".format(Sensor2.MeasureTemperature(Sensors.BMP280_OSS.x1)))
 		print("Pressure: {} hPa".format(Sensor2.MeasurePressure(Sensors.BMP280_OSS.x1, Sensors.BMP280_OSS.x1)))
 

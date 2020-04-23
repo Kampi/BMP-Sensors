@@ -68,6 +68,16 @@ class BMP180:
 
 		self.__LoadCalibrationCoef()
 
+	def __del__(self):
+		"""Object deconstructor.
+			Parameters:
+				None
+
+			Returns:
+				None
+		"""
+		self.__Interface.close()
+
 	def _ReadSInt(self, Address):
 		"""Read a signed integer from two sensor registers.
 
@@ -161,7 +171,7 @@ class BMP180:
 			Returns:
 				int: Device ID
 		"""
-		return self.__Interface.read_byte_data(self.__Address, BMP180_REGISTER_ID)
+		return self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_ID)
 
 	def GetCalibrationCoef(self):
 		"""Return a list with the calibration coefficients.

@@ -21,7 +21,6 @@
 
   Errors and commissions should be reported to DanielKampert@kampis-elektroecke.de
 '''
-
 import smbus
 from enum import Enum
 
@@ -95,6 +94,16 @@ class BMP280:
 
 		self.__LoadCalibrationCoef()
 
+	def __del__(self):
+		"""Object deconstructor.
+			Parameters:
+				None
+
+			Returns:
+				None
+		"""
+		self.__Interface.close()
+		
 	def _ReadSInt(self, Address):
 		"""Read a signed integer from two sensor registers.
 
