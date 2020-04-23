@@ -1,9 +1,9 @@
 '''
- * BMP280.py
+ * BME280.py
  *
  *  Copyright (C) Daniel Kampert, 2020
  *	Website: www.kampis-elektroecke.de
- *  File info: Module for the BMP280 I2C pressure sensor.
+ *  File info: Module for the BME280 I2C pressure sensor.
 
   GNU GENERAL PUBLIC LICENSE:
   This program is free software: you can redistribute it and/or modify
@@ -25,55 +25,57 @@
 import smbus
 from enum import Enum
 
-BMP280_REGISTER_TEMP_XLSB 	= 0xFC
-BMP280_REGISTER_TEMP_LSB 	= 0xFB
-BMP280_REGISTER_TEMP_MSB 	= 0xFA
-BMP280_REGISTER_PRESS_XLSB	= 0xF9
-BMP280_REGISTER_PRESS_LSB	= 0xF8
-BMP280_REGISTER_PRESS_MSB	= 0xF7
-BMP280_REGISTER_CONFIG		= 0xF5
-BMP280_REGISTER_CTRL_MEAS	= 0xF4
-BMP280_REGISTER_STATUS		= 0xF3
-BMP280_REGISTER_SOFT_RESET	= 0xE0
-BMP280_REGISTER_ID			= 0xD0
+BME280_REGISTER_HUM_LSB 	= 0xFE
+BME280_REGISTER_HUM_MSB 	= 0xFD
+BME280_REGISTER_TEMP_XLSB 	= 0xFC
+BME280_REGISTER_TEMP_LSB 	= 0xFB
+BME280_REGISTER_TEMP_MSB 	= 0xFA
+BME280_REGISTER_PRESS_XLSB	= 0xF9
+BME280_REGISTER_PRESS_LSB	= 0xF8
+BME280_REGISTER_PRESS_MSB	= 0xF7
+BME280_REGISTER_CONFIG		= 0xF5
+BME280_REGISTER_CTRL_MEAS	= 0xF4
+BME280_REGISTER_STATUS		= 0xF3
+BME280_REGISTER_SOFT_RESET	= 0xE0
+BME280_REGISTER_ID			= 0xD0
 
-BMP280_ID 					= 0x58
-BMP280_ADDRESS 				= 0x76
+BME280_ID 					= 0x60
+BME280_ADDRESS 				= 0x76
 
-BMP280_CMD_RESET			= 0xB6
+BME280_CMD_RESET			= 0xB6
 
-BMP280_BIT_MEASURE			= 0x03
+BME280_BIT_MEASURE			= 0x03
 
-class BMP280_OSS(Enum):
+class BME280_OSS(Enum):
 	x1						= 0x01
 	x2						= 0x02
 	x4						= 0x03
 	x8						= 0x04
 	x16						= 0x05
 
-class BMP280_Mode(Enum):
+class BME280_Mode(Enum):
 	SLEEP					= 0x00
 	FORCED					= 0x01
 	NORMAL					= 0x03
 
-class BMP280_Standby(Enum):
+class BME280_Standby(Enum):
 	STANDBY_05				= 0x00
 	STANDBY_62				= 0x01
 	STANDBY_125				= 0x02
 	STANDBY_250				= 0x03
 	STANDBY_500				= 0x04
 	STANDBY_1000			= 0x05
-	STANDBY_2000			= 0x06
-	STANDBY_4000			= 0x07
+	STANDBY_10				= 0x06
+	STANDBY_20				= 0x07
 
-class BMP280_Filter(Enum):
+class BME280_Filter(Enum):
 	OFF						= 0x00
 	COEF_2					= 0x01
 	COEF_4					= 0x02
 	COEF_8					= 0x03
 	COEF_16					= 0x04
 
-class BMP280:
+class BME280:
 	def __init__(self, Interface, SDO):
 		"""Object constructor. Initializes the I2C interface, check the sensor device ID and load the calibration coefficients.
 
@@ -86,10 +88,10 @@ class BMP280:
 		"""
 		self.__CalibCoef = dict()
 		self.__Interface = smbus.SMBus(Interface)
-		self.__Address = BMP280_ADDRESS | ((SDO & 0x01) << 0x00)
+		self.__Address = BME280_ADDRESS | ((SDO & 0x01) << 0x00)
 
 		ID = self.GetID()
-		if(ID != BMP280_ID):
+		if(ID != BME280_ID):
 			raise ValueError("[ERROR] Wrong device ID: {}".format(ID))
 			return
 
@@ -122,30 +124,19 @@ class BMP280:
 		"""
 		LSB = self.__Interface.read_byte_data(self.__Address, Address)
 		MSB = self.__Interface.read_byte_data(self.__Address, Address + 1)
-
+		
 		return (MSB << 0x08) | LSB
 
-	def __LoadDefaultCalibrationCoef(self):
-		"""Load the sensor calibration parameters for the example calculation (see the official datasheet for the parameters).
+	def _ReadUChar(self, Address):
+		"""Read a unsigned char from one sensor register.
 
 			Parameters:
-				None
+				Address (int): Register address
 
 			Returns:
-				None
+				int: Unsigned register value
 		"""
-		self.__CalibCoef.update({"T1": 27504})
-		self.__CalibCoef.update({"T2": 26435})
-		self.__CalibCoef.update({"T3": -1000})
-		self.__CalibCoef.update({"P1": 36477})
-		self.__CalibCoef.update({"P2": -10685})
-		self.__CalibCoef.update({"P3": 3024})
-		self.__CalibCoef.update({"P4": 2855})
-		self.__CalibCoef.update({"P5": 140})
-		self.__CalibCoef.update({"P6": -7})
-		self.__CalibCoef.update({"P7": 15500})
-		self.__CalibCoef.update({"P8": -14600})
-		self.__CalibCoef.update({"P9": 6000})
+		return self.__Interface.read_byte_data(self.__Address, Address)
 
 	def __LoadCalibrationCoef(self):
 		"""Load the sensor calibration parameters.
@@ -168,6 +159,11 @@ class BMP280:
 		P7 = self._ReadSInt(0x9A)
 		P8 = self._ReadSInt(0x9C)
 		P9 = self._ReadSInt(0x9E)
+		H1 = self._ReadUChar(0xA1)
+		H2 = self._ReadSInt(0xE1)
+		H3 = self._ReadUChar(0xE3)
+		H4 = self._ReadSInt(0xE4)
+		H5 = self._ReadSInt(0xE5)
 
 		self.__CalibCoef.update({"T1": T1})
 		self.__CalibCoef.update({"T2": T2})
@@ -181,6 +177,11 @@ class BMP280:
 		self.__CalibCoef.update({"P7": P7})
 		self.__CalibCoef.update({"P8": P8})
 		self.__CalibCoef.update({"P9": P9})
+		self.__CalibCoef.update({"H1": H1})
+		self.__CalibCoef.update({"H2": H2})
+		self.__CalibCoef.update({"H3": H3})
+		self.__CalibCoef.update({"H4": H4})
+		self.__CalibCoef.update({"H5": H5})
 
 	def GetID(self):
 		"""Return the device ID.
@@ -191,7 +192,7 @@ class BMP280:
 			Returns:
 				int: Device ID
 		"""
-		return self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_ID)
+		return self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_ID)
 
 	def GetCalibrationCoef(self):
 		"""Return a list with the calibration coefficients.
@@ -203,7 +204,7 @@ class BMP280:
 				list: Calibration coefficients
 		"""
 		return self.__CalibCoef
-
+		
 	def ConversionRunning(self):
 		"""Check if a conversion is active.
 
@@ -213,7 +214,7 @@ class BMP280:
 			Returns:
 				boolean: True when conversion is running
 		"""
-		return bool((self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_STATUS) & (0x01 << BMP280_BIT_MEASURE)) >> BMP280_BIT_MEASURE)
+		return bool((self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_STATUS) & (0x01 << BME280_BIT_MEASURE)) >> BME280_BIT_MEASURE)
 
 	def Reset(self):
 		"""Reset the sensor.
@@ -224,7 +225,7 @@ class BMP280:
 			Returns:
 				None
 		"""
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_SOFT_RESET, BMP280_CMD_RESET)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_SOFT_RESET, BME280_CMD_RESET)
 
 	def GetFilter(self):
 		"""Get the filter coefficient number from the sensor.
@@ -233,37 +234,37 @@ class BMP280:
 				None
 
 			Returns:
-				BMP280_Filter: Filter coefficient number
+				BME280_Filter: Filter coefficient number
 		"""
-		return BMP280_Filter((self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CONFIG) >> 0x02) & 0x07)
+		return BME280_Filter((self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CONFIG) >> 0x02) & 0x07)
 
 	def SetFilter(self, Filter):
 		"""Set the filter coefficient number for the sensor.
 
 			Parameters:
-				Filter (BMP280_Filter): Filter coefficient number
+				Filter (BME280_Filter): Filter coefficient number
 
 			Returns:
 				None
 		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CONFIG)
+		Data = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CONFIG)
 		Data &= 0xE3
 		Data |= (Filter.value << 0x02)
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CONFIG, Data)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CONFIG, Data)
 
 	def SetStandby(self, Standby):
 		"""Get the current standby time from the sensor.
 
 			Parameters:
-				Standby (BMP280_Standby): Standby time
+				Standby (BME280_Standby): Standby time
 
 			Returns:
 				None
 		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CONFIG)
+		Data = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CONFIG)
 		Data &= 0xE0
 		Data |= (Standby.value << 0x05)
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CONFIG, Data)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CONFIG, Data)
 
 	def GetStandby(self):
 		"""Get the current standby time from the sensor.
@@ -272,9 +273,9 @@ class BMP280:
 				None
 
 			Returns:
-				BMP280_Standby: Current sensor standby time
+				BME280_Standby: Current sensor standby time
 		"""
-		return BMP280_Standby(self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CONFIG) >> 0x05)
+		return BME280_Standby(self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CONFIG) >> 0x05)
 
 	def GetMode(self):
 		"""Get the current device mode from the sensor.
@@ -283,45 +284,45 @@ class BMP280:
 				None
 
 			Returns:
-				BMP280_Mode: Current sensor operation mode
+				BME280_Mode: Current sensor operation mode
 		"""
-		return BMP280_Mode(self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS) & 0x03)
+		return BME280_Mode(self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS) & 0x03)
 
 	def SetMode(self, Mode):
 		"""Set the current device mode for the sensor.
 
 			Parameters:
-				Mode (BMP280_Mode): Sensor operation mode
+				Mode (BME280_Mode): Sensor operation mode
 
 			Returns:
 				None
 				
 		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS)
 		Data &= 0xFC
 		Data |= Mode.value
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS, Data)
 
 	def ReadTemperature(self, OSS_Temperature):
 		"""Read the raw temperature from the sensor.
 
 			Parameters:
-				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
+				OSS_Temperature (BME280_OSS): Temperature measurement oversampling
 
 			Returns:
 				int: 16 bit raw temperature value
 		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS)
 		Data &= 0x1F
 		Data |= OSS_Temperature.value << 0x05
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS, Data)
 
 		while(self.ConversionRunning()):
 			pass
 
-		MSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_MSB)
-		LSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_LSB)
-		XLSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_XLSB)
+		MSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_TEMP_MSB)
+		LSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_TEMP_LSB)
+		XLSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_TEMP_XLSB)
 
 		return ((MSB << 0x0C) | (LSB << 0x04) | (XLSB >> 0x04))
 
@@ -329,7 +330,7 @@ class BMP280:
 		"""Read the calibrated temperature in degree Celsius from the sensor.
 
 			Parameters:
-				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
+				OSS_Temperature (BME280_OSS): Temperature measurement oversampling
 
 			Returns:
 				float: Temperature value
@@ -345,22 +346,22 @@ class BMP280:
 		"""Read the raw pressure from the sensor.
 
 			Parameters:
-				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
+				OSS_Pressure (BME280_OSS): Pressure measurement oversampling
 
 			Returns:
 				int: 16 bit raw pressure value
 		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS)
 		Data &= 0xE3
 		Data |= OSS_Pressure.value << 0x02
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CTRL_MEAS, Data)
 
 		while(self.ConversionRunning()):
 			pass
-
-		MSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_MSB)
-		LSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_LSB)
-		XLSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_XLSB)
+	
+		MSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_PRESS_MSB)
+		LSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_PRESS_LSB)
+		XLSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_PRESS_XLSB)
 
 		return ((MSB << 0x0C) | (LSB << 0x04) | (XLSB >> 0x04))
 
@@ -368,8 +369,8 @@ class BMP280:
 		"""Read the calibrated pressure in hPa from the sensor.
 
 			Parameters:
-				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
-				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
+				OSS_Pressure (BME280_OSS): Pressure measurement oversampling
+				OSS_Temperature (BME280_OSS): Temperature measurement oversampling
 
 			Returns:
 				float: Pressure value
@@ -384,10 +385,40 @@ class BMP280:
 		self.__var1 = (((0x01 << 0x2F) + self.__var1) * self.__CalibCoef["P1"]) >> 0x21
 		if(self.__var1 == 0x00):
 			return 0x00
-
+	
 		self.__p = 1048576 - RawPressure
 		self.__p = (((self.__p << 0x1F) - self.__var2) * 3125) // self.__var1
 		self.__var1 = (self.__CalibCoef["P9"] * (self.__p >> 0x0D) * (self.__p >> 0x0D)) >> 0x19
 		self.__var2 = (self.__CalibCoef["P8"] * self.__p) >> 0x13
-
+	
 		return round((((self.__p + self.__var1 + self.__var2) >> 0x08) + (self.__CalibCoef["P7"] << 0x04)) / 25600, 2)
+
+	def ReadHumidity(self, OSS_Humidity):
+		"""Read the raw humidity from the sensor.
+
+			Parameters:
+				OSS_Humidity (BME280_OSS): Humidity measurement oversampling
+
+			Returns:
+				int: 16 bit raw humidity value
+		"""
+		self.__Interface.write_byte_data(self.__Address, BME280_REGISTER_CTRL_HUM, OSS_Humidity.value)
+
+		while(self.ConversionRunning()):
+			pass
+	
+		MSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_HUM_MSB)
+		LSB = self.__Interface.read_byte_data(self.__Address, BME280_REGISTER_HUM_LSB)
+
+		return ((MSB << 0x08) | LSB)
+
+	def MeasureHumidity(self, OSS_Humidity):
+		"""Read the calibrated humidity in %RH from the sensor.
+
+			Parameters:
+				OSS_Humidity (BME280_OSS): Humidity measurement oversampling
+
+			Returns:
+				float: Humidity value
+		"""
+		pass

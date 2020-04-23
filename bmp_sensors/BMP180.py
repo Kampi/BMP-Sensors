@@ -61,7 +61,7 @@ class BMP180:
 		self.__CalibCoef = dict()
 		self.__Interface = smbus.SMBus(Interface)
 
-		ID = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_ID)
+		ID = self.GetID()
 		if(ID != BMP180_ID):
 			raise ValueError("[ERROR] Wrong device ID: {}".format(ID))
 			return
@@ -91,7 +91,7 @@ class BMP180:
 				Address (int): Register address
 
 			Returns:
-				int: Unigned register value
+				int: Unsigned register value
 		"""
 		MSB = self.__Interface.read_byte_data(BMP180_ADDRESS, Address)
 		LSB = self.__Interface.read_byte_data(BMP180_ADDRESS, Address + 1)
@@ -152,6 +152,17 @@ class BMP180:
 		self.__CalibCoef.update({"MC": MC})
 		self.__CalibCoef.update({"MD": MD})
 
+	def GetID(self):
+		"""Return the device ID.
+
+			Parameters:
+				None
+
+			Returns:
+				int: Device ID
+		"""
+		return self.__Interface.read_byte_data(self.__Address, BMP180_REGISTER_ID)
+
 	def GetCalibrationCoef(self):
 		"""Return a list with the calibration coefficients.
 
@@ -181,11 +192,11 @@ class BMP180:
 				None
 
 			Returns:
-				int: 16 bit raw temperature value (signed)
+				int: 16 bit raw temperature value
 		"""
 		# Start a new temperature conversion
 		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS, BMP180_CMD_GETTEMP)
-		
+
 		while(self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS) & (0x01 << BMP180_BIT_SCO)):
 			pass
 
@@ -196,13 +207,13 @@ class BMP180:
 		return (MSB << 0x08) | LSB
 
 	def MeasureTemperature(self):
-		"""Read the calibrated temperature in degree celsius from the sensor.
+		"""Read the calibrated temperature in degree Celsius from the sensor.
 
 			Parameters:
 				None
 
 			Returns:
-				float: Temperature value (signed)
+				float: Temperature value
 		"""
 		self.__X1 = ((self.ReadTemperature() - self.__CalibCoef["AC6"]) * self.__CalibCoef["AC5"]) >> 0x0F
 		self.__X2 = int((self.__CalibCoef["MC"] << 0x0B) / (self.__X1 + self.__CalibCoef["MD"]))
@@ -217,20 +228,20 @@ class BMP180:
 				OSS (BMP180_OSS): Pressure measurement oversampling
 
 			Returns:
-				int: 16 bit raw pressure value (unsigned)
+				int: 16 bit raw pressure value
 		"""
 		Data = ((OSS.value & 0x03) << 0x06) | BMP180_CMD_GETPRESSURE
 
 		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS, Data)
 		while(self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS) & (0x01 << BMP180_BIT_SCO)):
 			pass
-		
+
 		MSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_MLSB)
 		LSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_LSB)
 		XLSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_XLSB)
-		
+
 		return ((MSB << 0x10) | (LSB << 0x08) | XLSB) >> (0x08 - OSS.value)
-	
+
 	def MeasurePressure(self, OSS):
 		"""Read the calibrated pressure in hPa from the sensor.
 
@@ -238,7 +249,7 @@ class BMP180:
 				OSS (BMP180_OSS): Pressure measurement oversampling
 
 			Returns:
-				float: Pressure value (signed)
+				float: Pressure value
 		"""
 		self.MeasureTemperature()
 		self.__B6 = self.__B5 - 4000

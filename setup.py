@@ -5,7 +5,7 @@ with open("README.md", "r") as Help:
 
 setuptools.setup(
 	name="bmp-sensors", 
-	version="1.0.4",
+	version="1.1.0",
 	author="Daniel Kampert",
 	author_email="DanielKampert@kampis-elektroecke.de",
 	description="I2C driver for the Bosch Sensortec BMP-Sensors family.",
