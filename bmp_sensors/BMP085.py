@@ -1,9 +1,9 @@
 '''
- * BMP180.py
+ * BMP085.py
  *
  *  Copyright (C) Daniel Kampert, 2020
  *	Website: www.kampis-elektroecke.de
- *  File info: Module for the BMP180 I2C pressure sensor.
+ *  File info: Module for the BMP085 I2C pressure sensor.
 
   GNU GENERAL PUBLIC LICENSE:
   This program is free software: you can redistribute it and/or modify
@@ -21,51 +21,38 @@
 
   Errors and commissions should be reported to DanielKampert@kampis-elektroecke.de
 '''
-
+import time
 import smbus
 from enum import Enum
 
-BMP180_REGISTER_OUT_XLSB 	= 0xF8
-BMP180_REGISTER_OUT_LSB 	= 0xF7
-BMP180_REGISTER_OUT_MSB 	= 0xF6
-BMP180_REGISTER_CTRL_MEAS	= 0xF4
-BMP180_REGISTER_SOFT_RESET	= 0xE0
-BMP180_REGISTER_ID 			= 0xD0
+BMP085_REGISTER_CTRL_MEAS	= 0xF4
+BMP085_REGISTER_OUT_XLSB 	= 0xF8
+BMP085_REGISTER_OUT_LSB 	= 0xF7
+BMP085_REGISTER_OUT_MSB 	= 0xF6
 
-BMP180_ID 					= 0x55
-BMP180_ADDRESS 				= 0x77
+BMP085_ADDRESS 				= 0x77
 
-BMP180_CMD_RESET			= 0xB6
-BMP180_CMD_GETTEMP      	= 0x2E
-BMP180_CMD_GETPRESSURE   	= 0x34
+BMP085_CMD_GETTEMP      	= 0x2E
+BMP085_CMD_GETPRESSURE   	= 0x34
 
-BMP180_BIT_SCO				= 0x05
+class BMP085_OSS(Enum):
+	x1						= 0x01
+	x2						= 0x02
+	x4						= 0x03
+	x8						= 0x04
 
-class BMP180_OSS(Enum):
-	x1						= 0x00
-	x2						= 0x01
-	x4						= 0x02
-	x8						= 0x03
-
-class BMP180:
+class BMP280:
 	def __init__(self, Interface):
-		"""Object constructor. Initializes the I2C interface, check the sensor device ID
-			and load the calibration coefficients.
+		"""Object constructor. Initializes the I2C interface and load the calibration coefficients.
 
 			Parameters:
-				argument1 (int): I2C interface number
+				Interface (int): I2C interface number
 
 			Returns:
 				None
 		"""
 		self.__CalibCoef = dict()
 		self.__Interface = smbus.SMBus(Interface)
-
-		ID = self.GetID()
-		if(ID != BMP180_ID):
-			raise ValueError("[ERROR] Wrong device ID: {}".format(ID))
-			return
-
 		self.__LoadCalibrationCoef()
 
 	def __del__(self):
@@ -77,7 +64,7 @@ class BMP180:
 				None
 		"""
 		self.__Interface.close()
-
+		
 	def _ReadSInt(self, Address):
 		"""Read a signed integer from two sensor registers.
 
@@ -103,9 +90,9 @@ class BMP180:
 			Returns:
 				int: Unsigned register value
 		"""
-		MSB = self.__Interface.read_byte_data(BMP180_ADDRESS, Address)
-		LSB = self.__Interface.read_byte_data(BMP180_ADDRESS, Address + 1)
-		
+		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, Address)
+		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, Address + 1)
+
 		return (MSB << 0x08) | LSB
 
 	def __LoadDefaultCalibrationCoef(self):
@@ -138,18 +125,18 @@ class BMP180:
 			Returns:
 				None
 		"""
-		AC1 = self._ReadSInt(0xAA)
-		AC2 = self._ReadSInt(0xAC)
-		AC3 = self._ReadSInt(0xAE)
-		AC4 = self._ReadUInt(0xB0)
-		AC5 = self._ReadUInt(0xB2)
-		AC6 = self._ReadUInt(0xB4)
-		B1 = self._ReadSInt(0xB6)
-		B2 = self._ReadSInt(0xB8)
-		MB = self._ReadSInt(0xBA)
-		MC = self._ReadSInt(0xBC)
-		MD = self._ReadSInt(0xBE)
-
+		AC1 = self.__ReadSInt(0xAA)
+		AC2 = self.__ReadSInt(0xAC)
+		AC3 = self.__ReadSInt(0xAE)
+		AC4 = self.__ReadUInt(0xB0)
+		AC5 = self.__ReadUInt(0xB2)
+		AC6 = self.__ReadUInt(0xB4)
+		B1 = self.__ReadSInt(0xB6)
+		B2 = self.__ReadSInt(0xB8)
+		MB = self.__ReadSInt(0xBA)
+		MC = self.__ReadSInt(0xBC)
+		MD = self.__ReadSInt(0xBE)
+	
 		self.__CalibCoef.update({"AC1": AC1})
 		self.__CalibCoef.update({"AC2": AC2})
 		self.__CalibCoef.update({"AC3": AC3})
@@ -162,17 +149,6 @@ class BMP180:
 		self.__CalibCoef.update({"MC": MC})
 		self.__CalibCoef.update({"MD": MD})
 
-	def GetID(self):
-		"""Return the device ID.
-
-			Parameters:
-				None
-
-			Returns:
-				int: Device ID
-		"""
-		return self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_ID)
-
 	def GetCalibrationCoef(self):
 		"""Return a list with the calibration coefficients.
 
@@ -184,17 +160,6 @@ class BMP180:
 		"""
 		return self.__CalibCoef
 
-	def Reset(self):
-		"""Reset the sensor.
-
-			Parameters:
-				None
-
-			Returns:
-				None
-		"""
-		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_SOFT_RESET, BMP180_CMD_RESET)
-
 	def ReadTemperature(self):
 		"""Read the raw temperature from the sensor.
 
@@ -205,14 +170,13 @@ class BMP180:
 				int: 16 bit raw temperature value
 		"""
 		# Start a new temperature conversion
-		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS, BMP180_CMD_GETTEMP)
+		self.__Interface.write_byte_data(BMP085_ADDRESS, BMP085_REGISTER_CTRL_MEAS, BMP085_CMD_GETTEMP)
 
-		while(self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS) & (0x01 << BMP180_BIT_SCO)):
-			pass
+		time.sleep(0.03)
 
 		# Read out the temperature data
-		MSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_MSB)
-		LSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_LSB)
+		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MSB)
+		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_LSB)
 
 		return (MSB << 0x08) | LSB
 
@@ -235,21 +199,20 @@ class BMP180:
 		"""Read the raw pressure from the sensor.
 
 			Parameters:
-				OSS (BMP180_OSS): Pressure measurement oversampling
+				OSS (BMP085_OSS): Pressure measurement oversampling
 
 			Returns:
 				int: 16 bit raw pressure value
 		"""
-		Data = ((OSS.value & 0x03) << 0x06) | BMP180_CMD_GETPRESSURE
+		Data = ((OSS.value & 0x03) << 0x06) | BMP085_CMD_GETPRESSURE
 
-		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS, Data)
+		self.__Interface.write_byte_data(BMP085_ADDRESS, BMP085_REGISTER_CTRL_MEAS, Data)
 
-		while(self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_CTRL_MEAS) & (0x01 << BMP180_BIT_SCO)):
-			pass
+		time.sleep(0.03))
 
-		MSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_MSB)
-		LSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_LSB)
-		XLSB = self.__Interface.read_byte_data(BMP180_ADDRESS, BMP180_REGISTER_OUT_XLSB)
+		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MLSB)
+		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_LSB)
+		XLSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_XLSB)
 
 		return ((MSB << 0x10) | (LSB << 0x08) | XLSB) >> (0x08 - OSS.value)
 
@@ -257,7 +220,7 @@ class BMP180:
 		"""Read the calibrated pressure in hPa from the sensor.
 
 			Parameters:
-				OSS (BMP180_OSS): Pressure measurement oversampling
+				OSS (BMP085_OSS): Pressure measurement oversampling
 
 			Returns:
 				float: Pressure value

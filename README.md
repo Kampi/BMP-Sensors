@@ -26,6 +26,7 @@ $ python3 -m pip install bmp-sensors
 
 | **Part Number** | **Description** |
 |---|---|
+| BMP085 | Digital pressure (0.01 hPa resolution) and temperature (0.1 Kelvin resolution) sensor. |
 | BMP180 | Digital pressure (1 Pa resolution) and temperature (0.1 Kelvin resolution) sensor. |
 | BMP280 | Digital pressure (0.16 Pa resolution) and temperature (0.01 Kelvin resolution) sensor. |
 | BME280 | Digital pressure (0.16 Pa resolution), humidity (0.008% resolution) and temperature (0.01 Kelvin resolution) sensor. |
@@ -35,7 +36,7 @@ $ python3 -m pip install bmp-sensors
 | **Version** | **Description** |  **Date**  |
 |-------------|-----------------|------------|
 | 1.0         | First release   | 22.04.2020 |
-| 1.1         | Add BME280, optimize code  |  |
+| 1.1         | Add BMP085, BME280, optimize code  |  |
 
 ## Maintainer
 
