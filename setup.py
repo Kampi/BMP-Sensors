@@ -1,7 +1,7 @@
 import setuptools
 
 with open("README.md", "r") as Help:
-    long_description = Help.read()
+	long_description = Help.read()
 
 setuptools.setup(
 	name="bmp-sensors", 
