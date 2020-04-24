@@ -12,7 +12,7 @@
 
 ## About
 
-This module contains I2C driver for digital pressure sensors from [Bosch Sensortec](https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/).
+This module contains several I2C driver for digital pressure sensors from [Bosch Sensortec](https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/).
 
 ## Setup
 

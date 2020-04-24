@@ -196,7 +196,7 @@ class BMP180:
 		self.__Interface.write_byte_data(BMP180_ADDRESS, BMP180_REGISTER_SOFT_RESET, BMP180_CMD_RESET)
 
 	def ReadTemperature(self):
-		"""Read the raw temperature from the sensor.
+		"""Start a new temperature measurement and read the raw result from the sensor.
 
 			Parameters:
 				None
@@ -232,7 +232,7 @@ class BMP180:
 		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
 
 	def ReadPressure(self, OSS):
-		"""Read the raw pressure from the sensor.
+		"""Start a new pressure measurement and read the raw result from the sensor.
 
 			Parameters:
 				OSS (BMP180_OSS): Pressure measurement oversampling

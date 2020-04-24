@@ -161,7 +161,7 @@ class BMP280:
 		return self.__CalibCoef
 
 	def ReadTemperature(self):
-		"""Read the raw temperature from the sensor.
+		"""Start a new temperature measurement and read the raw result from the sensor.
 
 			Parameters:
 				None
@@ -196,7 +196,7 @@ class BMP280:
 		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
 
 	def ReadPressure(self, OSS):
-		"""Read the raw pressure from the sensor.
+		"""Start a new pressure measurement and read the raw result from the sensor.
 
 			Parameters:
 				OSS (BMP085_OSS): Pressure measurement oversampling

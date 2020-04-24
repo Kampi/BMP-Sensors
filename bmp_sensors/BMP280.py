@@ -312,7 +312,7 @@ class BMP280:
 		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
 
 	def ReadTemperature(self, OSS_Temperature):
-		"""Read the raw temperature from the sensor.
+		"""Start a new temperature measurement and read the raw result from the sensor.
 
 			Parameters:
 				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
@@ -351,7 +351,7 @@ class BMP280:
 		return round(((self.__temperature_fine * 0x05 + 0x80) >> 0x08) / 100.0, 4)
 
 	def ReadPressure(self, OSS_Pressure):
-		"""Read the raw pressure from the sensor.
+		"""Start a new pressure measurement and read the raw result from the sensor.
 
 			Parameters:
 				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
