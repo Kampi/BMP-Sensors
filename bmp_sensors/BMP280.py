@@ -344,7 +344,7 @@ class BMP280:
 				float: Temperature value
 		"""
 		self.__RawTemp = self.ReadTemperature(OSS_Temperature)
-		self.__var1 = (((self.__RawTemp >> 0x03) - (self.__CalibCoef["T1"] << 1)) * self.__CalibCoef["T2"]) >> 0x0B
+		self.__var1 = (((self.__RawTemp >> 0x03) - (self.__CalibCoef["T1"] << 0x01)) * self.__CalibCoef["T2"]) >> 0x0B
 		self.__var2 = (((((self.__RawTemp >> 0x04) - (self.__CalibCoef["T1"])) * ((self.__RawTemp >> 0x04) - (self.__CalibCoef["T1"]))) >> 0x0C) * (self.__CalibCoef["T3"])) >> 0x0E
 		self.__temperature_fine = self.__var1 + self.__var2
 
