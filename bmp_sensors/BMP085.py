@@ -208,7 +208,7 @@ class BMP280:
 
 		self.__Interface.write_byte_data(BMP085_ADDRESS, BMP085_REGISTER_CTRL_MEAS, Data)
 
-		time.sleep(0.03))
+		time.sleep(0.03)
 
 		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MLSB)
 		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_LSB)

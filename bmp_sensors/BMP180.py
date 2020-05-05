@@ -267,9 +267,9 @@ class BMP180:
 		self.__X1 = (self.__CalibCoef["B2"]  * ((self.__B6 * self.__B6) >> 0x0B)) >> 0x0B
 		self.__X2 = int(self.__CalibCoef["AC2"] * self.__B6 >> 0x0B)
 		self.__X3 = self.__X1 + self.__X2
-		self.__B3 = ((((self.__CalibCoef["AC1"] << 0x02) + self.__X3) << OSS.value) + 2) >> 0x02
+		self.__B3 = ((((self.__CalibCoef["AC1"] << 0x02) + self.__X3) << OSS.value) + 0x02) >> 0x02
 		self.__X1 = (self.__CalibCoef["AC3"] * self.__B6) >> 0x0D
-		self.__X2 = (self.__CalibCoef["B1"] * (self.__B6 * self.__B6 >> 0x0C)) >> 0x20
+		self.__X2 = (self.__CalibCoef["B1"] * (self.__B6 * self.__B6 >> 0x0C)) >> 0x10
 		self.__X3 = ((self.__X1 + self.__X2) + 0x02) >> 0x02
 		self.__B4 = self.__CalibCoef["AC4"] * (self.__X3 + 32768) >> 0x0F
 		self.__B7 = (self.ReadPressure(OSS) - self.__B3) * (50000 >> OSS.value)
@@ -279,7 +279,7 @@ class BMP180:
 			self.__p = int(self.__B7 / self.__B4) << 0x01
 
 		self.__X1 = (self.__p >> 0x08) * (self.__p >> 0x08)
-		self.__X1 = (self.__X1 * 3038) >> 0x20
-		self.__X2 = (-7357 * self.__p) >> 0x20
+		self.__X1 = (self.__X1 * 3038) >> 0x10
+		self.__X2 = (-7357 * self.__p) >> 0x10
 
 		return round((self.__p + ((self.__X1 + self.__X2 + 3791) >> 0x04)), 2) / 100.0
