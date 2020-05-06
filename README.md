@@ -18,7 +18,7 @@ This module contains several I2C driver for digital pressure sensors from [Bosch
 
 You can install this module via `pip`:
 
-```
+```bash
 $ python3 -m pip install bmp-sensors
 ```
 

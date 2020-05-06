@@ -44,33 +44,33 @@ BMP280_CMD_RESET			= 0xB6
 BMP280_BIT_MEASURE			= 0x03
 
 class BMP280_OSS(Enum):
-	x1						= 0x01
-	x2						= 0x02
-	x4						= 0x03
-	x8						= 0x04
-	x16						= 0x05
+	x1				= 0x01
+	x2				= 0x02
+	x4				= 0x03
+	x8				= 0x04
+	x16				= 0x05
 
 class BMP280_Mode(Enum):
-	SLEEP					= 0x00
-	FORCED					= 0x01
-	NORMAL					= 0x03
+	SLEEP			= 0x00
+	FORCED			= 0x01
+	NORMAL			= 0x03
 
 class BMP280_Standby(Enum):
-	STANDBY_05				= 0x00
-	STANDBY_62				= 0x01
-	STANDBY_125				= 0x02
-	STANDBY_250				= 0x03
-	STANDBY_500				= 0x04
-	STANDBY_1000			= 0x05
-	STANDBY_2000			= 0x06
-	STANDBY_4000			= 0x07
+	STANDBY_05		= 0x00
+	STANDBY_62		= 0x01
+	STANDBY_125		= 0x02
+	STANDBY_250		= 0x03
+	STANDBY_500		= 0x04
+	STANDBY_1000	= 0x05
+	STANDBY_2000	= 0x06
+	STANDBY_4000	= 0x07
 
 class BMP280_Filter(Enum):
-	OFF						= 0x00
-	COEF_2					= 0x01
-	COEF_4					= 0x02
-	COEF_8					= 0x03
-	COEF_16					= 0x04
+	OFF				= 0x00
+	COEF_2			= 0x01
+	COEF_4			= 0x02
+	COEF_8			= 0x03
+	COEF_16			= 0x04
 
 class BMP280:
 	def __init__(self, Interface, SDO):
@@ -129,10 +129,9 @@ class BMP280:
 			Returns:
 				int: Unsigned register value
 		"""
-		LSB = self.__Interface.read_byte_data(self.__Address, Address)
-		MSB = self.__Interface.read_byte_data(self.__Address, Address + 1)
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP280_ADDRESS, 2)
 
-		return (MSB << 0x08) | LSB
+		return (Data[0] << 0x08) | Data[1]
 
 	def __LoadDefaultCalibrationCoef(self):
 		"""Load the sensor calibration parameters for the example calculation (see the official datasheet for the parameters).
@@ -165,31 +164,100 @@ class BMP280:
 			Returns:
 				None
 		"""
-		T1 = self._ReadUInt(0x88)
-		T2 = self._ReadSInt(0x8A)
-		T3 = self._ReadSInt(0x8C)
-		P1 = self._ReadUInt(0x8E)
-		P2 = self._ReadSInt(0x90)
-		P3 = self._ReadSInt(0x92)
-		P4 = self._ReadSInt(0x94)
-		P5 = self._ReadSInt(0x96)
-		P6 = self._ReadSInt(0x98)
-		P7 = self._ReadSInt(0x9A)
-		P8 = self._ReadSInt(0x9C)
-		P9 = self._ReadSInt(0x9E)
+		self.__CalibCoef.update({"T1": self._ReadUInt(0x88)})
+		self.__CalibCoef.update({"T2": self._ReadSInt(0x8A)})
+		self.__CalibCoef.update({"T3": self._ReadSInt(0x8C)})
+		self.__CalibCoef.update({"P1": self._ReadUInt(0x8E)})
+		self.__CalibCoef.update({"P2": self._ReadSInt(0x90)})
+		self.__CalibCoef.update({"P3": self._ReadSInt(0x92)})
+		self.__CalibCoef.update({"P4": self._ReadSInt(0x94)})
+		self.__CalibCoef.update({"P5": self._ReadSInt(0x96)})
+		self.__CalibCoef.update({"P6": self._ReadSInt(0x98)})
+		self.__CalibCoef.update({"P7": self._ReadSInt(0x9A)})
+		self.__CalibCoef.update({"P8": self._ReadSInt(0x9C)})
+		self.__CalibCoef.update({"P9": self._ReadSInt(0x9E)})
 
-		self.__CalibCoef.update({"T1": T1})
-		self.__CalibCoef.update({"T2": T2})
-		self.__CalibCoef.update({"T3": T3})
-		self.__CalibCoef.update({"P1": P1})
-		self.__CalibCoef.update({"P2": P2})
-		self.__CalibCoef.update({"P3": P3})
-		self.__CalibCoef.update({"P4": P4})
-		self.__CalibCoef.update({"P5": P5})
-		self.__CalibCoef.update({"P6": P6})
-		self.__CalibCoef.update({"P7": P7})
-		self.__CalibCoef.update({"P8": P8})
-		self.__CalibCoef.update({"P9": P9})
+	def __ReadTemperature(self, OSS_Temperature):
+		"""Start a new temperature measurement and read the raw result from the sensor.
+
+			Parameters:
+				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
+
+			Returns:
+				int: 16 bit raw temperature value
+		"""
+		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data &= 0x1F
+		Data |= OSS_Temperature.value << 0x05
+		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+
+		while(self.ConversionRunning()):
+			pass
+
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP280_REGISTER_TEMP_MSB, 3)
+
+		return (Data[0] << 0x0C) | (Data[1] << 0x04) | (Data[2] >> 0x04)
+
+	def __ReadPressure(self, OSS_Pressure):
+		"""Start a new pressure measurement and read the raw result from the sensor.
+
+			Parameters:
+				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
+
+			Returns:
+				int: 16 bit raw pressure value
+		"""
+		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data &= 0xE3
+		Data |= OSS_Pressure.value << 0x02
+		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+
+		while(self.ConversionRunning()):
+			pass
+
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP280_REGISTER_PRESS_MSB, 3)
+
+		return (Data[0] << 0x0C) | (Data[1] << 0x04) | (Data[2] >> 0x04)
+
+	def __CalcTemperature(self, RawTemp):
+		"""Calculate the calibrated temperature from the raw temperature value.
+
+			Parameters:
+				RawTemp (int): Raw temperature from the sensor
+
+			Returns:
+				float: Temperature value
+		"""
+		self.__var1 = (((RawTemp >> 0x03) - (self.__CalibCoef["T1"] << 0x01)) * self.__CalibCoef["T2"]) >> 0x0B
+		self.__var2 = (((((RawTemp >> 0x04) - self.__CalibCoef["T1"]) * ((RawTemp >> 0x04) - self.__CalibCoef["T1"])) >> 0x0C) * self.__CalibCoef["T3"]) >> 0x0E
+		self.__temperature_fine = self.__var1 + self.__var2
+
+		return round(((self.__temperature_fine * 0x05 + 0x80) >> 0x08) / 100.0, 4)
+
+	def __CalcPressure(self, RawPressure):
+		"""Calculate the calibrated pressure from the raw pressure value. A temperature measurement has to be done before to get the correct results.
+
+			Parameters:
+				RawPressure (int): Raw pressure from the sensor
+
+			Returns:
+				float: Pressure value
+		"""
+		self.__var1 = self.__temperature_fine - 128000
+		self.__var2 = self.__var1 * self.__var1 * self.__CalibCoef["P6"]
+		self.__var2 = self.__var2 + ((self.__var1 * self.__CalibCoef["P5"]) << 0x11)
+		self.__var2 = self.__var2 + (self.__CalibCoef["P4"] << 0x23)
+		self.__var1 = (((self.__var1 * self.__var1 * self.__CalibCoef["P3"]) >> 0x08) + ((self.__var1 * self.__CalibCoef["P2"]) << 0x0C))
+		self.__var1 = (((0x01 << 0x2F) + self.__var1) * self.__CalibCoef["P1"]) >> 0x21
+		if(self.__var1 == 0x00):
+			return 0x00
+
+		self.__p = 1048576 - RawPressure
+		self.__p = (((self.__p << 0x1F) - self.__var2) * 3125) // self.__var1
+		self.__var1 = (self.__CalibCoef["P9"] * (self.__p >> 0x0D) * (self.__p >> 0x0D)) >> 0x19
+		self.__var2 = (self.__CalibCoef["P8"] * self.__p) >> 0x13
+
+		return round((((self.__p + self.__var1 + self.__var2) >> 0x08) + (self.__CalibCoef["P7"] << 0x04)) / 25600, 2)
 
 	def GetID(self):
 		"""Return the device ID.
@@ -311,29 +379,6 @@ class BMP280:
 		Data |= Mode.value
 		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
 
-	def ReadTemperature(self, OSS_Temperature):
-		"""Start a new temperature measurement and read the raw result from the sensor.
-
-			Parameters:
-				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
-
-			Returns:
-				int: 16 bit raw temperature value
-		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
-		Data &= 0x1F
-		Data |= OSS_Temperature.value << 0x05
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
-
-		while(self.ConversionRunning()):
-			pass
-
-		MSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_MSB)
-		LSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_LSB)
-		XLSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_TEMP_XLSB)
-
-		return ((MSB << 0x0C) | (LSB << 0x04) | (XLSB >> 0x04))
-
 	def MeasureTemperature(self, OSS_Temperature):
 		"""Read the calibrated temperature in degree Celsius from the sensor.
 
@@ -343,35 +388,7 @@ class BMP280:
 			Returns:
 				float: Temperature value
 		"""
-		self.__RawTemp = self.ReadTemperature(OSS_Temperature)
-		self.__var1 = (((self.__RawTemp >> 0x03) - (self.__CalibCoef["T1"] << 0x01)) * self.__CalibCoef["T2"]) >> 0x0B
-		self.__var2 = (((((self.__RawTemp >> 0x04) - self.__CalibCoef["T1"]) * ((self.__RawTemp >> 0x04) - self.__CalibCoef["T1"])) >> 0x0C) * self.__CalibCoef["T3"]) >> 0x0E
-		self.__temperature_fine = self.__var1 + self.__var2
-
-		return round(((self.__temperature_fine * 0x05 + 0x80) >> 0x08) / 100.0, 4)
-
-	def ReadPressure(self, OSS_Pressure):
-		"""Start a new pressure measurement and read the raw result from the sensor.
-
-			Parameters:
-				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
-
-			Returns:
-				int: 16 bit raw pressure value
-		"""
-		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
-		Data &= 0xE3
-		Data |= OSS_Pressure.value << 0x02
-		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
-
-		while(self.ConversionRunning()):
-			pass
-
-		MSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_MSB)
-		LSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_LSB)
-		XLSB = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_PRESS_XLSB)
-
-		return ((MSB << 0x0C) | (LSB << 0x04) | (XLSB >> 0x04))
+		return self.__CalcTemperature(self, self.__ReadTemperature(OSS_Temperature))
 
 	def MeasurePressure(self, OSS_Pressure, OSS_Temperature):
 		"""Read the calibrated pressure in hPa from the sensor.
@@ -383,20 +400,60 @@ class BMP280:
 			Returns:
 				float: Pressure value
 		"""
-		self.MeasureTemperature(OSS_Temperature)
-		RawPressure = self.ReadPressure(OSS_Pressure)
-		self.__var1 = self.__temperature_fine - 128000
-		self.__var2 = self.__var1 * self.__var1 * self.__CalibCoef["P6"]
-		self.__var2 = self.__var2 + ((self.__var1 * self.__CalibCoef["P5"]) << 0x11)
-		self.__var2 = self.__var2 + (self.__CalibCoef["P4"] << 0x23)
-		self.__var1 = (((self.__var1 * self.__var1 * self.__CalibCoef["P3"]) >> 0x08) + ((self.__var1 * self.__CalibCoef["P2"]) << 0x0C))
-		self.__var1 = (((0x01 << 0x2F) + self.__var1) * self.__CalibCoef["P1"]) >> 0x21
-		if(self.__var1 == 0x00):
-			return 0x00
+		self.__MeasureTemperature(OSS_Temperature)
 
-		self.__p = 1048576 - RawPressure
-		self.__p = (((self.__p << 0x1F) - self.__var2) * 3125) // self.__var1
-		self.__var1 = (self.__CalibCoef["P9"] * (self.__p >> 0x0D) * (self.__p >> 0x0D)) >> 0x19
-		self.__var2 = (self.__CalibCoef["P8"] * self.__p) >> 0x13
+		return self.__CalcPressure(self, self.__ReadPressure(OSS_Pressure))
 
-		return round((((self.__p + self.__var1 + self.__var2) >> 0x08) + (self.__CalibCoef["P7"] << 0x04)) / 25600, 2)
+	def Start(self, OSS_Temperature, OSS_Pressure, Standby, Filter):
+		"""Put the device into normal mode and start the continouus measurement.
+
+			Parameters:
+				OSS_Pressure (BMP280_OSS): Pressure measurement oversampling
+				OSS_Temperature (BMP280_OSS): Temperature measurement oversampling
+				Standby (BMP280_Standby): Standby time
+				Filter (BMP280_Filter): Filter coefficient number
+
+			Returns:
+				None
+		"""
+
+		Data = self.__Interface.read_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS)
+		Data &= 0xFC
+		Data |= (OSS_Temperature.value << 0x05) | (OSS_Pressure.value << 0x02)
+
+		self.__Interface.write_byte_data(self.__Address, BMP280_REGISTER_CTRL_MEAS, Data)
+		self.SetStandby(Standby)
+		self.SetFilter(Filter)
+		self.SetMode(BMP280_Mode.NORMAL)
+
+	def Get(self):
+		"""Used in normal mode to read out a new temperature and pressure value.
+
+			Parameters:
+				None
+
+			Returns:
+				float, float: Temperature and pressure value
+		"""
+
+		while(self.ConversionRunning()):
+			pass
+
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP280_REGISTER_TEMP_MSB, 3)
+		RawTemp = (Data[0] << 0x0C) | (Data[1] << 0x04) | (Data[2] >> 0x04)
+
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP280_REGISTER_PRESS_MSB, 3)
+		RawPressure = (Data[0] << 0x0C) | (Data[1] << 0x04) | (Data[2] >> 0x04)
+
+		return self.__CalcTemperature(RawTemp), self.__CalcPressure(RawPressure)
+
+	def Stop(self):
+		"""Stop the continouus measurement and put the device back into sleep mode.
+
+			Parameters:
+				None
+
+			Returns:
+				None
+		"""
+		self.SetMode(BMP280_Mode.SLEEP)

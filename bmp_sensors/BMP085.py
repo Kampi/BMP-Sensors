@@ -90,10 +90,9 @@ class BMP280:
 			Returns:
 				int: Unsigned register value
 		"""
-		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, Address)
-		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, Address + 1)
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_ADDRESS, 2)
 
-		return (MSB << 0x08) | LSB
+		return (Data[0] << 0x08) | Data[1]
 
 	def __LoadDefaultCalibrationCoef(self):
 		"""Load the sensor calibration parameters for the example calculation (see the official datasheet for the parameters).
@@ -125,42 +124,19 @@ class BMP280:
 			Returns:
 				None
 		"""
-		AC1 = self.__ReadSInt(0xAA)
-		AC2 = self.__ReadSInt(0xAC)
-		AC3 = self.__ReadSInt(0xAE)
-		AC4 = self.__ReadUInt(0xB0)
-		AC5 = self.__ReadUInt(0xB2)
-		AC6 = self.__ReadUInt(0xB4)
-		B1 = self.__ReadSInt(0xB6)
-		B2 = self.__ReadSInt(0xB8)
-		MB = self.__ReadSInt(0xBA)
-		MC = self.__ReadSInt(0xBC)
-		MD = self.__ReadSInt(0xBE)
-	
-		self.__CalibCoef.update({"AC1": AC1})
-		self.__CalibCoef.update({"AC2": AC2})
-		self.__CalibCoef.update({"AC3": AC3})
-		self.__CalibCoef.update({"AC4": AC4})
-		self.__CalibCoef.update({"AC5": AC5})
-		self.__CalibCoef.update({"AC6": AC6})
-		self.__CalibCoef.update({"B1": B1})
-		self.__CalibCoef.update({"B2": B2})
-		self.__CalibCoef.update({"MB": MB})
-		self.__CalibCoef.update({"MC": MC})
-		self.__CalibCoef.update({"MD": MD})
+		self.__CalibCoef.update({"AC1": self.__ReadSInt(0xAA)})
+		self.__CalibCoef.update({"AC2": self.__ReadSInt(0xAC)})
+		self.__CalibCoef.update({"AC3": self.__ReadSInt(0xAE)})
+		self.__CalibCoef.update({"AC4": self.__ReadUInt(0xB0)})
+		self.__CalibCoef.update({"AC5": self.__ReadUInt(0xB2)})
+		self.__CalibCoef.update({"AC6": self.__ReadUInt(0xB4)})
+		self.__CalibCoef.update({"B1": self.__ReadSInt(0xB6)})
+		self.__CalibCoef.update({"B2": self.__ReadSInt(0xB8)})
+		self.__CalibCoef.update({"MB": self.__ReadSInt(0xBA)})
+		self.__CalibCoef.update({"MC": self.__ReadSInt(0xBC)})
+		self.__CalibCoef.update({"MD": self.__ReadSInt(0xBE)})
 
-	def GetCalibrationCoef(self):
-		"""Return a list with the calibration coefficients.
-
-			Parameters:
-				None
-
-			Returns:
-				list: Calibration coefficients
-		"""
-		return self.__CalibCoef
-
-	def ReadTemperature(self):
+	def __ReadTemperature(self):
 		"""Start a new temperature measurement and read the raw result from the sensor.
 
 			Parameters:
@@ -169,33 +145,15 @@ class BMP280:
 			Returns:
 				int: 16 bit raw temperature value
 		"""
-		# Start a new temperature conversion
 		self.__Interface.write_byte_data(BMP085_ADDRESS, BMP085_REGISTER_CTRL_MEAS, BMP085_CMD_GETTEMP)
 
 		time.sleep(0.03)
 
-		# Read out the temperature data
-		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MSB)
-		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_LSB)
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_REGISTER_OUT_MSB, 2)
 
-		return (MSB << 0x08) | LSB
+		return (Data[0] << 0x08) | Data[1]
 
-	def MeasureTemperature(self):
-		"""Read the calibrated temperature in degree Celsius from the sensor.
-
-			Parameters:
-				None
-
-			Returns:
-				float: Temperature value
-		"""
-		self.__X1 = ((self.ReadTemperature() - self.__CalibCoef["AC6"]) * self.__CalibCoef["AC5"]) >> 0x0F
-		self.__X2 = int((self.__CalibCoef["MC"] << 0x0B) / (self.__X1 + self.__CalibCoef["MD"]))
-		self.__B5 = self.__X1 + self.__X2
-
-		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
-
-	def ReadPressure(self, OSS):
+	def __ReadPressure(self, OSS):
 		"""Start a new pressure measurement and read the raw result from the sensor.
 
 			Parameters:
@@ -210,11 +168,35 @@ class BMP280:
 
 		time.sleep(0.03)
 
-		MSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MLSB)
-		LSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_LSB)
-		XLSB = self.__Interface.read_byte_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_XLSB)
+		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_REGISTER_OUT_MSB, 3)
 
-		return ((MSB << 0x10) | (LSB << 0x08) | XLSB) >> (0x08 - OSS.value)
+		return ((Data[0] << 0x10) | (Data[1] << 0x08) | Data[2]) >> (0x08 - OSS.value)
+
+	def GetCalibrationCoef(self):
+		"""Return a list with the calibration coefficients.
+
+			Parameters:
+				None
+
+			Returns:
+				list: Calibration coefficients
+		"""
+		return self.__CalibCoef
+
+	def MeasureTemperature(self):
+		"""Read the calibrated temperature in degree Celsius from the sensor.
+
+			Parameters:
+				None
+
+			Returns:
+				float: Temperature value
+		"""
+		self.__X1 = ((self.__ReadTemperature() - self.__CalibCoef["AC6"]) * self.__CalibCoef["AC5"]) >> 0x0F
+		self.__X2 = int((self.__CalibCoef["MC"] << 0x0B) / (self.__X1 + self.__CalibCoef["MD"]))
+		self.__B5 = self.__X1 + self.__X2
+
+		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
 
 	def MeasurePressure(self, OSS):
 		"""Read the calibrated pressure in hPa from the sensor.
@@ -225,7 +207,7 @@ class BMP280:
 			Returns:
 				float: Pressure value
 		"""
-		self.MeasureTemperature()
+		self.__MeasureTemperature()
 		self.__B6 = self.__B5 - 4000
 		self.__X1 = (self.__CalibCoef["B2"]  * ((self.__B6 * self.__B6) >> 0x0B)) >> 0x0B
 		self.__X2 = int(self.__CalibCoef["AC2"] * self.__B6 >> 0x0B)
@@ -235,7 +217,7 @@ class BMP280:
 		self.__X2 = (self.__CalibCoef["B1"] * (self.__B6 * self.__B6 >> 0x0C)) >> 0x20
 		self.__X3 = ((self.__X1 + self.__X2) + 0x02) >> 0x02
 		self.__B4 = self.__CalibCoef["AC4"] * (self.__X3 + 32768) >> 0x0F
-		self.__B7 = (self.ReadPressure(OSS) - self.__B3) * (50000 >> OSS.value)
+		self.__B7 = (self.__ReadPressure(OSS) - self.__B3) * (50000 >> OSS.value)
 		if(self.__B7 < 0x80000000):
 			self.__p = int((self.__B7 << 0x01) / self.__B4)
 		else:
