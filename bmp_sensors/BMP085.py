@@ -30,10 +30,10 @@ BMP085_REGISTER_OUT_XLSB 	= 0xF8
 BMP085_REGISTER_OUT_LSB 	= 0xF7
 BMP085_REGISTER_OUT_MSB 	= 0xF6
 
-BMP085_ADDRESS 				= 0x77
-
 BMP085_CMD_GETTEMP      	= 0x2E
 BMP085_CMD_GETPRESSURE   	= 0x34
+
+BMP085_ADDRESS 				= 0x77
 
 class BMP085_OSS(Enum):
 	x1						= 0x01
@@ -65,7 +65,7 @@ class BMP280:
 		"""
 		self.__Interface.close()
 		
-	def _ReadSInt(self, Address):
+	def __ReadSInt(self, Address):
 		"""Read a signed integer from two sensor registers.
 
 			Parameters:
@@ -74,14 +74,14 @@ class BMP280:
 			Returns:
 				int: Signed register value
 		"""
-		Data = self._ReadUInt(Address)
+		Data = self.__ReadUInt(Address)
 
 		if(Data & (0x01 << 0x0F)):
 			Data -= 65536
 
 		return Data
 
-	def _ReadUInt(self, Address):
+	def __ReadUInt(self, Address):
 		"""Read a unsigned integer from two sensor registers.
 
 			Parameters:
@@ -90,7 +90,7 @@ class BMP280:
 			Returns:
 				int: Unsigned register value
 		"""
-		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_ADDRESS, 2)
+		Data = self.__Interface.read_i2c_block_data(BMP085_ADDRESS, Address, 2)
 
 		return (Data[0] << 0x08) | Data[1]
 
@@ -149,7 +149,7 @@ class BMP280:
 
 		time.sleep(0.03)
 
-		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_REGISTER_OUT_MSB, 2)
+		Data = self.__Interface.read_i2c_block_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MSB, 2)
 
 		return (Data[0] << 0x08) | Data[1]
 
@@ -160,7 +160,7 @@ class BMP280:
 				OSS (BMP085_OSS): Pressure measurement oversampling
 
 			Returns:
-				int: 16 bit raw pressure value
+				int: 20 bit raw pressure value
 		"""
 		Data = ((OSS.value & 0x03) << 0x06) | BMP085_CMD_GETPRESSURE
 
@@ -168,7 +168,7 @@ class BMP280:
 
 		time.sleep(0.03)
 
-		Data = self.__Interface.read_i2c_block_data(self.__Address, BMP085_REGISTER_OUT_MSB, 3)
+		Data = self.__Interface.read_i2c_block_data(BMP085_ADDRESS, BMP085_REGISTER_OUT_MSB, 3)
 
 		return ((Data[0] << 0x10) | (Data[1] << 0x08) | Data[2]) >> (0x08 - OSS.value)
 
@@ -207,7 +207,7 @@ class BMP280:
 			Returns:
 				float: Pressure value
 		"""
-		self.__MeasureTemperature()
+		self.MeasureTemperature()
 		self.__B6 = self.__B5 - 4000
 		self.__X1 = (self.__CalibCoef["B2"]  * ((self.__B6 * self.__B6) >> 0x0B)) >> 0x0B
 		self.__X2 = int(self.__CalibCoef["AC2"] * self.__B6 >> 0x0B)
