@@ -36,17 +36,37 @@ BMP085_CMD_GETPRESSURE   	= 0x34
 BMP085_ADDRESS 				= 0x77
 
 class BMP085_OSS(Enum):
-	x1						= 0x01
-	x2						= 0x02
-	x4						= 0x03
-	x8						= 0x04
+	X1						= 0x01
+	X2						= 0x02
+	X4						= 0x03
+	X8						= 0x04
+
+class BMP085_Data:
+	def __init__(self, Temperature, Pressure):
+		self.__Temperature = Temperature
+		self.__Pressure = Pressure
+
+	def __repr__(self):
+		return "BMP085_Data()"
+
+	def __str__(self):
+		return "Temperature : {} Degree Celsius\n" \
+		       "Pressure : {} hPa".format(self.__Temperature, self.__Pressure)
+
+	@property
+	def temperature(self):
+		return self.__Temperature
+
+	@property
+	def pressure(self):
+		return self.__Pressure
 
 class BMP280:
 	def __init__(self, Interface):
 		"""Object constructor. Initializes the I2C interface and load the calibration coefficients.
 
 			Parameters:
-				Interface (int): I2C interface number
+				Interface (int): I2C interface number.
 
 			Returns:
 				None
@@ -69,10 +89,10 @@ class BMP280:
 		"""Read a signed integer from two sensor registers.
 
 			Parameters:
-				Address (int): Register address
+				Address (int): Register address.
 
 			Returns:
-				int: Signed register value
+				int: Signed register value.
 		"""
 		Data = self.__ReadUInt(Address)
 
@@ -85,10 +105,10 @@ class BMP280:
 		"""Read a unsigned integer from two sensor registers.
 
 			Parameters:
-				Address (int): Register address
+				Address (int): Register address.
 
 			Returns:
-				int: Unsigned register value
+				int: Unsigned register value.
 		"""
 		Data = self.__Interface.read_i2c_block_data(BMP085_ADDRESS, Address, 2)
 
@@ -143,7 +163,7 @@ class BMP280:
 				None
 
 			Returns:
-				int: 16 bit raw temperature value
+				int: 16 bit raw temperature value.
 		"""
 		self.__Interface.write_byte_data(BMP085_ADDRESS, BMP085_REGISTER_CTRL_MEAS, BMP085_CMD_GETTEMP)
 
@@ -157,10 +177,10 @@ class BMP280:
 		"""Start a new pressure measurement and read the raw result from the sensor.
 
 			Parameters:
-				OSS (BMP085_OSS): Pressure measurement oversampling
+				OSS (BMP085_OSS): Pressure measurement oversampling.
 
 			Returns:
-				int: 20 bit raw pressure value
+				int: 20 bit raw pressure value.
 		"""
 		Data = ((OSS.value & 0x03) << 0x06) | BMP085_CMD_GETPRESSURE
 
@@ -172,6 +192,51 @@ class BMP280:
 
 		return ((Data[0] << 0x10) | (Data[1] << 0x08) | Data[2]) >> (0x08 - OSS.value)
 
+	def __CalcTemperature(self, RawTemp):
+		"""Calculate the calibrated temperature from the raw temperature value.
+
+			Parameters:
+				RawTemp (int): Raw temperature from the sensor.
+
+			Returns:
+				float: Temperature value in Degree Celsius.
+		"""
+		self.__X1 = ((RawTemp - self.__CalibCoef["AC6"]) * self.__CalibCoef["AC5"]) >> 0x0F
+		self.__X2 = int((self.__CalibCoef["MC"] << 0x0B) / (self.__X1 + self.__CalibCoef["MD"]))
+		self.__B5 = self.__X1 + self.__X2
+
+		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
+
+	def __CalcPressure(self, RawPressure):
+		"""Calculate the calibrated pressure from the raw pressure value. A temperature measurement has to be done before to get the correct results.
+
+			Parameters:
+				RawPressure (int): Raw pressure from the sensor.
+
+			Returns:
+				float: Pressure value in hPa.
+		"""
+		self.__B6 = self.__B5 - 4000
+		self.__X1 = (self.__CalibCoef["B2"]  * ((self.__B6 * self.__B6) >> 0x0B)) >> 0x0B
+		self.__X2 = int(self.__CalibCoef["AC2"] * self.__B6 >> 0x0B)
+		self.__X3 = self.__X1 + self.__X2
+		self.__B3 = ((((self.__CalibCoef["AC1"] << 0x02) + self.__X3) << OSS.value) + 2) >> 0x02
+		self.__X1 = (self.__CalibCoef["AC3"] * self.__B6) >> 0x0D
+		self.__X2 = (self.__CalibCoef["B1"] * (self.__B6 * self.__B6 >> 0x0C)) >> 0x20
+		self.__X3 = ((self.__X1 + self.__X2) + 0x02) >> 0x02
+		self.__B4 = self.__CalibCoef["AC4"] * (self.__X3 + 32768) >> 0x0F
+		self.__B7 = (RawPressure - self.__B3) * (50000 >> OSS.value)
+		if(self.__B7 < 0x80000000):
+			self.__p = int((self.__B7 << 0x01) // self.__B4)
+		else:
+			self.__p = int(self.__B7 // self.__B4) << 0x01
+
+		self.__X1 = (self.__p >> 0x08) * (self.__p >> 0x08)
+		self.__X1 = (self.__X1 * 3038) >> 0x20
+		self.__X2 = (-7357 * self.__p) >> 0x20
+
+		return round((self.__p + ((self.__X1 + self.__X2 + 3791) >> 0x04)), 2) / 100.0
+
 	def GetCalibrationCoef(self):
 		"""Return a list with the calibration coefficients.
 
@@ -179,7 +244,7 @@ class BMP280:
 				None
 
 			Returns:
-				list: Calibration coefficients
+				list: Calibration coefficients.
 		"""
 		return self.__CalibCoef
 
@@ -190,41 +255,30 @@ class BMP280:
 				None
 
 			Returns:
-				float: Temperature value
+				float: Temperature value in Degree Celsius.
 		"""
-		self.__X1 = ((self.__ReadTemperature() - self.__CalibCoef["AC6"]) * self.__CalibCoef["AC5"]) >> 0x0F
-		self.__X2 = int((self.__CalibCoef["MC"] << 0x0B) / (self.__X1 + self.__CalibCoef["MD"]))
-		self.__B5 = self.__X1 + self.__X2
+		return self.__CalcTemperature(self.__ReadTemperature())
 
-		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
-
-	def MeasurePressure(self, OSS):
+	def MeasurePressure(self, OSS = BMP085_OSS.X1):
 		"""Read the calibrated pressure in hPa from the sensor.
 
 			Parameters:
-				OSS (BMP085_OSS): Pressure measurement oversampling
+				OSS (BMP085_OSS): Pressure measurement oversampling.
 
 			Returns:
-				float: Pressure value
+				float: Pressure value in hPa.
 		"""
 		self.MeasureTemperature()
-		self.__B6 = self.__B5 - 4000
-		self.__X1 = (self.__CalibCoef["B2"]  * ((self.__B6 * self.__B6) >> 0x0B)) >> 0x0B
-		self.__X2 = int(self.__CalibCoef["AC2"] * self.__B6 >> 0x0B)
-		self.__X3 = self.__X1 + self.__X2
-		self.__B3 = ((((self.__CalibCoef["AC1"] << 0x02) + self.__X3) << OSS.value) + 2) >> 0x02
-		self.__X1 = (self.__CalibCoef["AC3"] * self.__B6) >> 0x0D
-		self.__X2 = (self.__CalibCoef["B1"] * (self.__B6 * self.__B6 >> 0x0C)) >> 0x20
-		self.__X3 = ((self.__X1 + self.__X2) + 0x02) >> 0x02
-		self.__B4 = self.__CalibCoef["AC4"] * (self.__X3 + 32768) >> 0x0F
-		self.__B7 = (self.__ReadPressure(OSS) - self.__B3) * (50000 >> OSS.value)
-		if(self.__B7 < 0x80000000):
-			self.__p = int((self.__B7 << 0x01) / self.__B4)
-		else:
-			self.__p = int(self.__B7 / self.__B4) << 0x01
 
-		self.__X1 = (self.__p >> 0x08) * (self.__p >> 0x08)
-		self.__X1 = (self.__X1 * 3038) >> 0x20
-		self.__X2 = (-7357 * self.__p) >> 0x20
+		return self.__CalcPressure(self.__ReadPressure(OSS))
 
-		return round((self.__p + ((self.__X1 + self.__X2 + 3791) >> 0x04)), 2) / 100.0
+	def Measure(self, OSS = BMP085_OSS.X1):
+		"""Run a complete measurement cycle with each sensor.
+
+			Parameters:
+				OSS (BMP085_OSS): Pressure measurement oversampling.
+
+			Returns:
+				BMP085_Data: Temperature value in Degree Celsius and pressure value in hPa.
+		"""
+		return BMP085_Data(self.MeasureTemperature(), self.__CalcPressure(self.__ReadPressure(OSS)))
