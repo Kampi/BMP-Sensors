@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: bmp-sensors
-Version: 1.1.0
+Version: 1.1.1
 Summary: I2C driver for the Bosch Sensortec BMP-Sensors family.
 Home-page: https://gitlab.com/Kampi/bmp-sensors
 Author: Daniel Kampert

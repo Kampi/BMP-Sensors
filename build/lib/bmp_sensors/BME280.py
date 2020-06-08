@@ -338,13 +338,13 @@ class BME280:
 		self.__var2 = RawHumidity * 16384
 		self.__var3 = (self.__CalibCoef["H4"] * 1048576);
 		self.__var4 = self.__CalibCoef["H5"] * self.__var1
-		self.__var5 = (((self.__var2 - self.__var3) - self.__var4) + 16384) / 32768
+		self.__var5 = (((self.__var2 - self.__var3) - self.__var4) + 16384) >> 0x0F
 		self.__var2 = (self.__var1 * self.__CalibCoef["H6"]) >> 0x0A
 		self.__var3 = (self.__var1 * self.__CalibCoef["H3"]) >> 0x0B
 		self.__var4 = ((self.__var2 * (self.__var3 + 32768)) >> 0x0A) + 2097152
 		self.__var2 = ((self.__var4 * self.__CalibCoef["H2"]) + 8192) >> 0x0E
 		self.__var3 = self.__var5 * self.__var2
-		self.__var4 = ((self.__var3 / 32768) * (self.__var3 / 32768)) >> 0x07
+		self.__var4 = ((self.__var3 >> 0x0F) * (self.__var3 >> 0x0F)) >> 0x07
 		self.__var5 = self.__var3 - ((self.__var4 * self.__CalibCoef["H1"]) >> 0x04)
 		
 		if(self.__var5 < 0):
