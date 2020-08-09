@@ -225,11 +225,12 @@ class BMP180:
 
 		return round(float((self.__B5 + 0x08) >> 0x04) * 0.1, 1)
 
-	def __CalcPressure(self, RawPressure):
+	def __CalcPressure(self, RawPressure, OSS):
 		"""Calculate the calibrated pressure from the raw pressure value. A temperature measurement has to be done before to get the correct results.
 
 			Parameters:
 				RawPressure (int): Raw pressure from the sensor.
+				OSS (BMP180_OSS): Pressure measurement oversampling.
 
 			Returns:
 				float: Pressure value in hPa.
@@ -303,14 +304,14 @@ class BMP180:
 		"""Read the calibrated pressure in hPa from the sensor.
 
 			Parameters:
-				OSS (BMP180_OSS): Pressure measurement oversampling
+				OSS (BMP180_OSS): Pressure measurement oversampling.
 
 			Returns:
 				float: Pressure value in hPa.
 		"""
 		self.MeasureTemperature()
 
-		return self.__CalcPressure(self.__ReadPressure(OSS))
+		return self.__CalcPressure(self.__ReadPressure(OSS), OSS)
 
 	def Measure(self, OSS = BMP180_OSS.X1):
 		"""Run a complete measurement cycle with each sensor.
