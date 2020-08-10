@@ -139,19 +139,19 @@ if(__name__ == "__main__"):
 			# Calculate the IAQ index
 			# (based on https://forum.iot-usergroup.de/t/indoor-air-quality-index/416/2)
 			if(Data.temperature > 21.0):
-				TempRel = (Data.temperature - TemperatureBaseline) / (79.0 / 10.0)
+				TempRel = (Data.temperature - TemperatureBaseline) / 7.9
 			else:
-				TempRel = (Data.temperature - TemperatureBaseline)  / (-41.0 / 10.0)
+				TempRel = (Data.temperature - TemperatureBaseline)  / (-4.1)
 
 			if(Data.humidity > 40.0):
-				HumRel = (Data.humidity - HumidityBaseline) / (60.0 / 10.0)
+				HumRel = (Data.humidity - HumidityBaseline) / 6
 			else:
-				HumRel = (Data.humidity - HumidityBaseline)  / (-40.0 / 10.0)
+				HumRel = (Data.humidity - HumidityBaseline)  / (-4)
 
 			if(Valid == True):
 				GasRel = (Data.gasResistance - GasBaseline) / (-GasBaseline / 80.0)
 
-			IAQ = min(max(TempRel * HumRel * GasRel, 0.0), 500.0)
+			IAQ = min(max(TempRel + HumRel + GasRel, 0.0), 500.0)
 
 			print("IAQ index: {}".format(IAQ))
 
