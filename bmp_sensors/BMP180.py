@@ -323,4 +323,4 @@ class BMP180:
 				BMP180_Data: Temperature value in Degree Celsius and pressure value in hPa.
 		"""
 
-		return BMP180_Data(self.MeasureTemperature(), self.__CalcPressure(self.__ReadPressure(OSS)))
+		return BMP180_Data(self.MeasureTemperature(), self.__CalcPressure(self.__ReadPressure(OSS), OSS))
