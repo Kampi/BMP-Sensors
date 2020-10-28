@@ -5,13 +5,13 @@ with open("README.md", "r") as Help:
 
 setuptools.setup(
 	name="bmp-sensors", 
-	version="1.1.3",
+	version="1.1.4",
 	author="Daniel Kampert",
 	author_email="DanielKampert@kampis-elektroecke.de",
 	description="I2C driver for the Bosch Sensortec BMP-Sensors family.",
 	long_description=long_description,
 	long_description_content_type="text/markdown",
-	url="https://gitlab.com/Kampi/bmp-sensors",
+	url="https://gitlab.server-kampert.de/Kampi/bmp-sensors",
 	packages=setuptools.find_packages(),
 	classifiers=[
 		"Programming Language :: Python :: 3",
